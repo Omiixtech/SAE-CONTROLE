@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no"/>
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
+  <meta name="apple-mobile-web-app-title" content="SAE Contrôle" />
+  <title>SAE Contrôle</title>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+  <style>
+    body {
+      margin: 0;
+      font-family: -apple-system, BlinkMacSystemFont, sans-serif;
+      background: #f3f4f6;
+      overflow-x: hidden;
+    }
+    header {
+      background: linear-gradient(90deg, #dc2626, #f87171);
+      color: white;
+      padding: 1rem;
+      text-align: center;
+      font-size: 1.5rem;
+    }
+    #sidebar {
+      position: fixed;
+      top: 3.5rem;
+      left: 0;
+      width: 200px;
+      height: 100%;
+      background: #fff;
+      border-right: 1px solid #e5e7eb;
+      padding: 1rem;
+    }
+    #sidebar button {
+      display: block;
+      width: 100%;
+      margin-bottom: 1rem;
+      padding: 0.75rem;
+      border: none;
+      background: #dc2626;
+      color: white;
+      font-size: 1rem;
+      border-radius: 0.5rem;
+    }
+    #main {
+      margin-left: 220px;
+      padding: 1rem;
+    }
+    #sae-container {
+      display: flex;
+      flex-direction: column;
+      gap: 1rem;
+    }
+    #map {
+      height: 300px;
+      border-radius: 0.5rem;
+    }
+    .info-panel {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .status {
+      padding: 0.5rem 1rem;
+      background: #16a34a;
+      color: white;
+      border-radius: 9999px;
+    }
+    .details {
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
+      align-items: flex-end;
+    }
+    .details div {
+      background: #e5e7eb;
+      padding: 0.5rem;
+      border-radius: 0.5rem;
+      min-width: 80px;
+      text-align: center;
+    }
+    #plaquette {
+      margin-top: 1rem;
+      padding: 1rem;
+      background: #fff;
+      border-radius: 0.5rem;
+      box-shadow: 0 0 5px rgba(0,0,0,0.1);
+    }
+    .controls {
+      display: flex;
+      justify-content: space-between;
+      margin-top: 1rem;
+    }
+    .controls button {
+      flex: 1;
+      margin: 0 0.25rem;
+      padding: 0.75rem;
+      background: #ef4444;
+      color: white;
+      border: none;
+      border-radius: 0.5rem;
+    }
+  </style>
+</head>
+<body>
+  <header>SAE Contrôle</header>
+  <div id="sidebar">
+    <button onclick="showView('sae')">🛰️ Mode SAE</button>
+    <button onclick="showView('pv')">📝 Rédaction PV</button>
+  </div>
+  <div id="main">
+    <div id="sae" style="display:block;">
+      <div id="sae-container">
+        <div class="info-panel">
+          <div class="status" id="status">À l'heure</div>
+          <div class="details">
+            <div id="service">Service 101</div>
+            <div id="ligne">Ligne A</div>
+          </div>
+        </div>
+        <div id="map"></div>
+        <div class="controls">
+          <button onclick="playPhonie()">📢 Phonie</button>
+          <button onclick="togglePlaquette()">📋 Plaquette</button>
+        </div>
+        <div id="plaquette" style="display:none;">
+          <strong>Plaquette de service :</strong>
+          <p>Départ : 08:00 | Terminus : 17:30<br>Course : N°1456 | Véhicule : 7802</p>
+        </div>
+      </div>
+    </div>
+
+    <div id="pv" style="display:none;">
+      <input type="text" id="nom" placeholder="Nom">
+      <input type="text" id="motif" placeholder="Motif">
+      <input type="date" id="date">
+      <button onclick="generatePDF()">📄 Télécharger PV</button>
+    </div>
+  </div>
+
+  <audio id="phonie" src="https://www.soundjay.com/button/beep-07.wav" preload="auto"></audio>
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <script>
+    function showView(view) {
+      document.getElementById('sae').style.display = 'none';
+      document.getElementById('pv').style.display = 'none';
+      document.getElementById(view).style.display = 'block';
+    }
+
+    function playPhonie() {
+      document.getElementById('phonie').play();
+    }
+
+    function togglePlaquette() {
+      const p = document.getElementById('plaquette');
+      p.style.display = p.style.display === 'none' ? 'block' : 'none';
+    }
+
+    async function generatePDF() {
+      const { jsPDF } = window.jspdf;
+      const doc = new jsPDF();
+      const nom = document.getElementById('nom').value;
+      const motif = document.getElementById('motif').value;
+      const date = document.getElementById('date').value;
+      doc.text("Procès-Verbal", 10, 20);
+      doc.text(`Nom : ${nom}`, 10, 30);
+      doc.text(`Motif : ${motif}`, 10, 40);
+      doc.text(`Date : ${date}`, 10, 50);
+      const img = new Image();
+      img.crossOrigin = "anonymous";
+      img.src = "https://www.envibus.fr/fileadmin/_processed_/a/b/csm_Logo_Envibus_2018_fond_blanc_59f994ed57.png";
+      img.onload = function() {
+        doc.addImage(img, "PNG", 130, 10, 60, 20);
+        doc.save("pv.pdf");
+      };
+    }
+
+    let map;
+    function initMap() {
+      map = L.map('map').setView([43.6, 7.1], 13);
+      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
+      if (navigator.geolocation) {
+        navigator.geolocation.watchPosition(pos => {
+          const lat = pos.coords.latitude;
+          const lon = pos.coords.longitude;
+          L.marker([lat, lon]).addTo(map).bindPopup("Position actuelle").openPopup();
+          map.setView([lat, lon], 14);
+        }, err => console.log("GPS error", err), {
+          enableHighAccuracy: true,
+          maximumAge: 10000,
+          timeout: 5000
+        });
+      }
+    }
+
+    window.onload = () => {
+      initMap();
+    };
+  </script>
+</body>
+</html>
